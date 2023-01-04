@@ -197,6 +197,29 @@ def cvt(k, dim, samples, cvt_use_cache=True):
 
     return k_means.cluster_centers_
 
+def cvt_navigation(k, dim, samples, cvt_use_cache=True):
+    # check if we have cached values
+    fname = __centroids_filename(k, dim)
+    if cvt_use_cache:
+        if Path(fname).is_file():
+            print("WARNING: using cached CVT:", fname)
+            return np.loadtxt(fname)
+    # otherwise, compute cvt
+    print("Computing CVT (this can take a while...):", fname)
+
+    #x = np.random.rand(samples, dim)
+    # The samples must be selected based on the robot's navigation
+    # dim : {2, 10, 20, 50, 250, 1000} 
+    # An array of 2-tuples
+
+
+
+    k_means = KMeans(init='k-means++', n_clusters=k,
+                     n_init=1, n_jobs=-1, verbose=1)#,algorithm="full")
+    k_means.fit(x)
+    __write_centroids(k_means.cluster_centers_)
+
+    return k_means.cluster_centers_
 
 def make_hashable(array):
     return tuple(map(float, array))
