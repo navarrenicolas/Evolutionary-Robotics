@@ -191,13 +191,26 @@ def cvt(k, dim, samples, cvt_use_cache=True):
 
     x = np.random.rand(samples, dim)
     k_means = KMeans(init='k-means++', n_clusters=k,
-                     n_init=1, n_jobs=-1, verbose=1)#,algorithm="full")
+                     n_init=1, verbose=1)#,algorithm="full",  n_jobs=-1,)
     k_means.fit(x)
     __write_centroids(k_means.cluster_centers_)
 
     return k_means.cluster_centers_
 
-def cvt_navigation(k, dim, samples, cvt_use_cache=True):
+def cvt_navigation(k,dim,samples, start_pos, cvt_use_cache=True):
+    # check if we have cached values
+    # The samples must be selected based on the robot's navigation
+    # dim : {2, 10, 20, 50, 250, 1000} 
+    # An array of 2-tuples
+    #
+    # Selection of the centroids
+    # 1. Choose a random time step in the trajectory (0,1000)
+    # 2. Pick a random point within the radius of that time step
+    # 3. Randomly select another time step
+    # 4. Pick a point in the map that is 
+        # - within the radius of the time step from the origin
+        # - within the radius of the time difference between the other centroids
+    
     # check if we have cached values
     fname = __centroids_filename(k, dim)
     if cvt_use_cache:
@@ -206,20 +219,37 @@ def cvt_navigation(k, dim, samples, cvt_use_cache=True):
             return np.loadtxt(fname)
     # otherwise, compute cvt
     print("Computing CVT (this can take a while...):", fname)
-
-    #x = np.random.rand(samples, dim)
-    # The samples must be selected based on the robot's navigation
-    # dim : {2, 10, 20, 50, 250, 1000} 
-    # An array of 2-tuples
-
-
-
+    trajectories = np.zeros((samples,dim))
+    for i in range(samples):
+        trajectories[i,:] = make_trajectory(dim//2,start_pos)
+    
     k_means = KMeans(init='k-means++', n_clusters=k,
-                     n_init=1, n_jobs=-1, verbose=1)#,algorithm="full")
-    k_means.fit(x)
+                     n_init=1, verbose=1)#,algorithm="full", n_jobs=-1)
+    k_means.fit(trajectories)
     __write_centroids(k_means.cluster_centers_)
 
     return k_means.cluster_centers_
+
+def make_trajectory(trajectory_len,start_pos):
+    pos = start_pos
+    time_steps = np.sort(np.random.randint(0,3000,trajectory_len))
+    trajectory = []
+    for idx,step in enumerate(time_steps):
+        if idx == 0:
+            pos = next_trajectory_point(pos,step)
+        else:
+            pos = next_trajectory_point(pos,step-time_steps[idx-1])
+        trajectory.append(pos)
+    return np.ndarray.flatten(np.array(trajectory))
+    
+def next_trajectory_point(pos,steps):
+    x = np.random.randint(max(0,pos[0]-steps),max(pos[0]+steps,1000))
+    y = np.random.randint(max(0,pos[1]-steps),max(pos[1]+steps,1000))
+    while( ((x-pos[0])**2 + y-pos[1]**2)**0.5 > steps ):
+        x = np.random.randint(max(0,pos[0]-steps),max(pos[0]+steps,1000))
+        y = np.random.randint(max(0,pos[1]-steps),max(pos[1]+steps,1000))
+    return [x,y]
+
 
 def make_hashable(array):
     return tuple(map(float, array))
