@@ -197,7 +197,7 @@ def cvt(k, dim, samples, cvt_use_cache=True):
 
     return k_means.cluster_centers_
 
-def cvt_navigation(k,dim,samples, start_pos, cvt_use_cache=True):
+def cvt_navigation(k,dim,samples, start_pos, maze, cvt_use_cache=True):
     # check if we have cached values
     # The samples must be selected based on the robot's navigation
     # dim : {2, 10, 20, 50, 250, 1000} 
@@ -221,7 +221,7 @@ def cvt_navigation(k,dim,samples, start_pos, cvt_use_cache=True):
     print("Computing CVT (this can take a while...):", fname)
     trajectories = np.zeros((samples,dim))
     for i in range(samples):
-        trajectories[i,:] = make_trajectory(dim//2,start_pos)
+        trajectories[i,:] = make_trajectory(dim//2,start_pos,maze)
     
     k_means = KMeans(init='k-means++', n_clusters=k,
                      n_init=1, verbose=1)#,algorithm="full", n_jobs=-1)
@@ -230,25 +230,47 @@ def cvt_navigation(k,dim,samples, start_pos, cvt_use_cache=True):
 
     return k_means.cluster_centers_
 
-def make_trajectory(trajectory_len,start_pos):
+def make_trajectory(trajectory_len,start_pos,maze):
     pos = start_pos
     time_steps = np.sort(np.random.randint(0,3000,trajectory_len))
     trajectory = []
     for idx,step in enumerate(time_steps):
         if idx == 0:
-            pos = next_trajectory_point(pos,step)
+            pos = next_trajectory_point(pos,step,maze)
         else:
-            pos = next_trajectory_point(pos,step-time_steps[idx-1])
+            pos = next_trajectory_point(pos,step-time_steps[idx-1],maze)
         trajectory.append(pos)
     return np.ndarray.flatten(np.array(trajectory))
-    
-def next_trajectory_point(pos,steps):
-    x = np.random.randint(max(0,pos[0]-steps),max(pos[0]+steps,1000))
-    y = np.random.randint(max(0,pos[1]-steps),max(pos[1]+steps,1000))
-    while( ((x-pos[0])**2 + y-pos[1]**2)**0.5 > steps ):
-        x = np.random.randint(max(0,pos[0]-steps),max(pos[0]+steps,1000))
-        y = np.random.randint(max(0,pos[1]-steps),max(pos[1]+steps,1000))
+ 
+def next_trajectory_point(pos,steps,maze):
+    x_steps = np.random.randint(0,steps) + 1
+    y_steps = steps-x_steps + 1
+    x = np.random.randint(pos[0]-x_steps,pos[0]+x_steps)
+    y = np.random.randint(pos[1]-y_steps,pos[1]+y_steps)
+    while(not check_line(pos,[x,y],x_steps,y_steps,maze)):
+        x_steps = np.random.randint(0,steps) + 1
+        y_steps = steps-x_steps + 1
+        x = np.random.randint(pos[0]-x_steps,pos[0]+x_steps)
+        y = np.random.randint(pos[1]-y_steps,pos[1]+y_steps)
     return [x,y]
+
+def check_line(start,stop,x_steps,y_steps,maze):
+    walls = (lambda x: zip(x[0],x[1]))(maze.nonzero())
+    for point in intermediates(start,stop,x_steps,y_steps):
+        if point in walls:
+            return True
+    return False
+
+def intermediates(p1, p2, x_steps,y_steps):
+    """"Return a list of nb_points equally spaced points
+    between p1 and p2"""
+    # If we have 8 intermediate points, we have 8+1=9 spaces
+    # between p1 and p2
+    x_spacing = (p2[0] - p1[0]) // (x_steps )
+    y_spacing = (p2[1] - p1[1]) // (y_steps )
+
+    return [[p1[0] + i * x_spacing, p1[1] +  i * y_spacing] 
+            for i in range(1, max(x_steps,y_steps)+1)]
 
 
 def make_hashable(array):
