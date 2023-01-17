@@ -47,6 +47,11 @@ import random
 from collections import defaultdict
 from sklearn.cluster import KMeans
 
+# Modules for pathfinding
+from simulations.navigation.a_star import a_star
+from simulations.navigation.gridmap import OccupancyGridMap
+from simulations.navigation.utils import plot_path
+
 default_params = \
     {
         # more of this -> higher-quality CVT
@@ -233,82 +238,50 @@ def cvt_navigation(k,dim,samples, start_pos, maze, cvt_use_cache=True):
 def make_trajectory(trajectory_len,start_pos,maze):
     pos = start_pos
     remaining_steps = 3000
+    total_trajectory = []
     # trajectory = np.ndarray((trajectory_len,2))
     trajectory = [pos]
     for i in range(1,trajectory_len):
-        if(remaining_steps<=1):
+        if(remaining_steps==0):
             # trajectory[i] = pos
             trajectory.append( pos )
         else:
-            steps = np.random.randint(1,remaining_steps)
+            pos,path = next_trajectory_point(pos,remaining_steps,maze)
+            steps = len(path) - 1
             remaining_steps -= steps
-            pos = next_trajectory_point(pos,steps,maze)
             trajectory.append( pos )
-    print(trajectory)
-    return np.ndarray.flatten(np.array(trajectory))
+            total_trajectory += path[0:steps]
+    return np.ndarray.flatten(np.array(trajectory)), total_trajectory
  
-def next_trajectory_point(pos,steps,maze):
-    [x,y] = sample_point(pos,steps)
-    # print(intermediates(pos,[x,y],x_steps,y_steps))
-    while(check_line(pos,[x,y],maze)):
-        [x,y] = sample_point(pos,steps)
+
+def next_trajectory_point(pos,remaining,maze):
+    path_pos = True
+    while(path_pos):
+        [x,y] = sample_point(maze)
+        path_pos, path_px = check_line(pos,[x,y],remaining,maze)
+    return [x,y], path_px
+
+def sample_point(maze):
+    [x,y] = np.random.randint(0,1000,size=2)
+    wall_indeces = maze.nonzero()
+    walls = list(map(list,list(zip(wall_indeces[0],wall_indeces[1])))) 
+    while([x,y] in walls):
+        [x,y] = np.random.randint(0,1000,size=2)
     return [x,y]
 
-def sample_point(start,steps):
-    x_steps = np.random.randint(0,steps) + 1
-    y_steps = steps-x_steps + 1
-    return [np.random.randint(max(0,start[0]-x_steps),min(start[0]+x_steps,1000)), 
-            np.random.randint(max(0,start[1]-y_steps),min(start[1]+y_steps,1000))]
 
-
-def check_line(start,stop,maze):
-    wall_indeces = maze.nonzero()
-    walls = list(map(list,list(zip(wall_indeces[0],wall_indeces[1]))))
-    if stop in walls:
-        print('Invalid Endpoint')
-        return True
-    interms = intermediates(start,stop)
-    for point in interms:
-        # print('Checking')
-        if point in walls:
-            print(' Invalid line')
-            return True
-    print('Valid')
-    return False
-
-def intermediates(p1, p2):
-    """"Return a list of nb_points equally spaced points
-    between p1 and p2"""
-    # If we have 8 intermediate points, we have 8+1=9 spaces
-    # between p1 and p2
-    x_spacing = (p2[0] - p1[0]) 
-    y_spacing = (p2[1] - p1[1])
-
-    if x_spacing == 0:
-        if y_spacing >0:
-            line_pts = np.arange(p1[1],p2[1])
-        else:
-            line_pts = np.arange(p2[1],p1[1])
-        return [[p1[0],i] for i in line_pts]
-    elif y_spacing == 0:
-        if x_spacing >0:
-            line_pts = np.arange(p1[0],p2[0])
-        else:
-            line_pts = np.arange(p2[0],p1[0])
-        return [[i,p1[1]] for i in line_pts]
-
-    interms = []
-    if np.abs(x_spacing) > np.abs(y_spacing):
-        padding = np.abs(x_spacing)//np.abs(y_spacing)
-        for i in range(np.abs(y_spacing)):
-            for j in range(padding):
-                interms.append([p1[0]+(i*j+j)*np.sign(y_spacing), p1[1]+i])
+def check_line(start,stop,remaining,maze):
+    path, path_px = a_star(start, stop, OccupancyGridMap(maze.toarray(),1) , movement='4N')
+    if path:
+        if len(path)>remaining:
+            print('Path too long')
+            return True, []
+        print('Found Path')
+        return False, path_px
     else:
-        padding = np.abs(y_spacing)//np.abs(x_spacing)
-        for i in range(np.abs(x_spacing)):
-            for j in range(padding):
-                interms.append([p1[0]+i, p1[1]+(i*j+j)*np.sign(x_spacing)])
-    return interms
+        print('Goal is not reachable')
+        return True, []
+
 
 def make_hashable(array):
     return tuple(map(float, array))
