@@ -232,46 +232,83 @@ def cvt_navigation(k,dim,samples, start_pos, maze, cvt_use_cache=True):
 
 def make_trajectory(trajectory_len,start_pos,maze):
     pos = start_pos
-    time_steps = np.sort(np.random.randint(0,3000,trajectory_len))
-    trajectory = []
-    for idx,step in enumerate(time_steps):
-        if idx == 0:
-            pos = next_trajectory_point(pos,step,maze)
+    remaining_steps = 3000
+    # trajectory = np.ndarray((trajectory_len,2))
+    trajectory = [pos]
+    for i in range(1,trajectory_len):
+        if(remaining_steps<=1):
+            # trajectory[i] = pos
+            trajectory.append( pos )
         else:
-            pos = next_trajectory_point(pos,step-time_steps[idx-1],maze)
-        trajectory.append(pos)
+            steps = np.random.randint(1,remaining_steps)
+            remaining_steps -= steps
+            pos = next_trajectory_point(pos,steps,maze)
+            trajectory.append( pos )
+    print(trajectory)
     return np.ndarray.flatten(np.array(trajectory))
  
 def next_trajectory_point(pos,steps,maze):
-    x_steps = np.random.randint(0,steps) + 1
-    y_steps = steps-x_steps + 1
-    x = np.random.randint(pos[0]-x_steps,pos[0]+x_steps)
-    y = np.random.randint(pos[1]-y_steps,pos[1]+y_steps)
-    while(not check_line(pos,[x,y],x_steps,y_steps,maze)):
-        x_steps = np.random.randint(0,steps) + 1
-        y_steps = steps-x_steps + 1
-        x = np.random.randint(pos[0]-x_steps,pos[0]+x_steps)
-        y = np.random.randint(pos[1]-y_steps,pos[1]+y_steps)
+    [x,y] = sample_point(pos,steps)
+    # print(intermediates(pos,[x,y],x_steps,y_steps))
+    while(check_line(pos,[x,y],maze)):
+        [x,y] = sample_point(pos,steps)
     return [x,y]
 
-def check_line(start,stop,x_steps,y_steps,maze):
-    walls = (lambda x: zip(x[0],x[1]))(maze.nonzero())
-    for point in intermediates(start,stop,x_steps,y_steps):
+def sample_point(start,steps):
+    x_steps = np.random.randint(0,steps) + 1
+    y_steps = steps-x_steps + 1
+    return [np.random.randint(max(0,start[0]-x_steps),min(start[0]+x_steps,1000)), 
+            np.random.randint(max(0,start[1]-y_steps),min(start[1]+y_steps,1000))]
+
+
+def check_line(start,stop,maze):
+    wall_indeces = maze.nonzero()
+    walls = list(map(list,list(zip(wall_indeces[0],wall_indeces[1]))))
+    if stop in walls:
+        print('Invalid Endpoint')
+        return True
+    interms = intermediates(start,stop)
+    for point in interms:
+        # print('Checking')
         if point in walls:
+            print(' Invalid line')
             return True
+    print('Valid')
     return False
 
-def intermediates(p1, p2, x_steps,y_steps):
+def intermediates(p1, p2):
     """"Return a list of nb_points equally spaced points
     between p1 and p2"""
     # If we have 8 intermediate points, we have 8+1=9 spaces
     # between p1 and p2
-    x_spacing = (p2[0] - p1[0]) // (x_steps )
-    y_spacing = (p2[1] - p1[1]) // (y_steps )
+    x_spacing = (p2[0] - p1[0]) 
+    y_spacing = (p2[1] - p1[1])
 
-    return [[p1[0] + i * x_spacing, p1[1] +  i * y_spacing] 
-            for i in range(1, max(x_steps,y_steps)+1)]
+    if x_spacing == 0:
+        if y_spacing >0:
+            line_pts = np.arange(p1[1],p2[1])
+        else:
+            line_pts = np.arange(p2[1],p1[1])
+        return [[p1[0],i] for i in line_pts]
+    elif y_spacing == 0:
+        if x_spacing >0:
+            line_pts = np.arange(p1[0],p2[0])
+        else:
+            line_pts = np.arange(p2[0],p1[0])
+        return [[i,p1[1]] for i in line_pts]
 
+    interms = []
+    if np.abs(x_spacing) > np.abs(y_spacing):
+        padding = np.abs(x_spacing)//np.abs(y_spacing)
+        for i in range(np.abs(y_spacing)):
+            for j in range(padding):
+                interms.append([p1[0]+(i*j+j)*np.sign(y_spacing), p1[1]+i])
+    else:
+        padding = np.abs(y_spacing)//np.abs(x_spacing)
+        for i in range(np.abs(x_spacing)):
+            for j in range(padding):
+                interms.append([p1[0]+i, p1[1]+(i*j+j)*np.sign(x_spacing)])
+    return interms
 
 def make_hashable(array):
     return tuple(map(float, array))
