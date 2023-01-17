@@ -68,4 +68,4 @@ def plot_path(path):
     # plot goal point
     plt.plot(goal_x, goal_y, 'go')
 
-    plt.show()
+    # plt.show()

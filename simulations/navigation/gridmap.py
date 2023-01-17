@@ -21,6 +21,9 @@ class OccupancyGridMap:
         # 2D array to mark visited nodes (in the beginning, no node has been visited)
         self.visited = np.zeros(self.dim_cells, dtype=np.float32)
 
+    def clear_visited(self):
+        self.visited = np.zeros(self.dim_cells, dtype=np.float32)
+    
     def mark_visited_idx(self, point_idx):
         """
         Mark a point as visited.

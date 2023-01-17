@@ -50,7 +50,8 @@ from sklearn.cluster import KMeans
 # Modules for pathfinding
 from simulations.navigation.a_star import a_star
 from simulations.navigation.gridmap import OccupancyGridMap
-from simulations.navigation.utils import plot_path
+from simulations.navigation.utils import dist2d
+
 
 default_params = \
     {
@@ -240,7 +241,7 @@ def make_trajectory(trajectory_len,start_pos,maze):
     remaining_steps = 3000
     total_trajectory = []
     # trajectory = np.ndarray((trajectory_len,2))
-    trajectory = [pos]
+    trajectory = []
     for i in range(1,trajectory_len):
         if(remaining_steps==0):
             # trajectory[i] = pos
@@ -257,21 +258,21 @@ def make_trajectory(trajectory_len,start_pos,maze):
 def next_trajectory_point(pos,remaining,maze):
     path_pos = True
     while(path_pos):
-        [x,y] = sample_point(maze)
+        [x,y] = sample_point(pos,remaining,maze)
         path_pos, path_px = check_line(pos,[x,y],remaining,maze)
     return [x,y], path_px
 
-def sample_point(maze):
-    [x,y] = np.random.randint(0,1000,size=2)
-    wall_indeces = maze.nonzero()
-    walls = list(map(list,list(zip(wall_indeces[0],wall_indeces[1])))) 
-    while([x,y] in walls):
-        [x,y] = np.random.randint(0,1000,size=2)
+def sample_point(start,remaining,maze):
+    [x,y] = [np.random.randint(max(0,start[0]-remaining),min(start[0]+remaining,999)), 
+            np.random.randint(max(0,start[1]-remaining),min(start[1]+remaining,999))]
+    while(maze.is_occupied_idx([x,y]) or dist2d(start,[x,y])>remaining):
+        [x,y] = [np.random.randint(max(0,start[0]-remaining),min(start[0]+remaining,999)), 
+            np.random.randint(max(0,start[1]-remaining),min(start[1]+remaining,999))]
     return [x,y]
 
-
 def check_line(start,stop,remaining,maze):
-    path, path_px = a_star(start, stop, OccupancyGridMap(maze.toarray(),1) , movement='4N')
+    path, path_px = a_star(start, stop, maze, movement='4N')
+    maze.clear_visited()
     if path:
         if len(path)>remaining:
             print('Path too long')
@@ -279,7 +280,8 @@ def check_line(start,stop,remaining,maze):
         print('Found Path')
         return False, path_px
     else:
-        print('Goal is not reachable')
+        # print('Goal is not reachable')
+        # print(stop)
         return True, []
 
 
