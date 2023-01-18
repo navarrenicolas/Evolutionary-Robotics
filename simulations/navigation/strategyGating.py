@@ -43,6 +43,10 @@ angleRMax=199
 # definition of states at time t and t-1
 S_t = ''
 S_tm1 = ''
+alpha = 0.4
+beta = 4
+gamma = 0.95
+Q={}
 
 #--------------------------------------
 # the function that selects which controller (radarGuidance or wallFollower) to use
@@ -60,10 +64,50 @@ def strategyGating(arbitrationMethod,verbose=True):
     choice = random.randrange(2)
   #------------------------------------------------
   elif arbitrationMethod=='randomPersist':
-    print('Persistent Random selection : to be implemented')
+    if choice == -1:
+      choice = 0
+      tLastChoice = time.time()
+    elif time.time() - tLastChoice > 2:
+      choice = random.randrange(2)
+      tLastChoice = time.time()
   #------------------------------------------------
   elif arbitrationMethod=='qlearning':
-    print('Q-Learning selection : to be implemented')
+    # Check if the state has been visited
+    if len(filterState(S_t).values())==0:
+      print(f'not in keys')
+      choice_tm1 = choice
+      choice = random.randrange(2)
+      tLastChoice = time.time()
+      Q[(S_t,choice)]=0
+    # Otherwise check if it has been long since the last change of action
+    elif time.time() - tLastChoice > 2:
+      print(f'too long')
+      choice_tm1 = choice
+      choice = random.randrange(2)
+      tLastChoice = time.time()
+      if (S_t,choice) not in Q:
+        Q[(S_t,choice)]=0
+    # Otherwise if the reward is not 0 change action
+    elif rew != 0:
+      print(f'change Q')
+      choice_tm1 = choice
+      dt=rew + gamma*getMaxValue(S_t) - Q[(S_tm1,choice_tm1)]
+      print(f'dt: {dt}')
+      Q[(S_tm1,choice_tm1)] += alpha*dt
+      filtered_Q = filterState(S_t)
+      filtered_vals = np.array(list(filtered_Q.values()))
+      if len(filtered_vals)==0:
+        choice = random.randrange(2)
+      else:
+        choice = list(filtered_Q)[sampleProbs(filtered_vals)][1]
+      tLastChoice = time.time()
+      if (S_t,choice) not in Q:
+        Q[(S_t,choice)]=0
+      rew = 0
+    else:
+      print('Wait')
+      if (S_t,choice) not in Q:
+        Q[(S_t,choice)]=0
   #------------------------------------------------
   else:
     print(arbitrationMethod+' unknown.')
@@ -71,6 +115,21 @@ def strategyGating(arbitrationMethod,verbose=True):
 
   if verbose:
     print("strategyGating: Active Module: "+i2name[choice])
+#--------------------------------------
+def filterState(state):
+  return {k:v for k,v in Q.items() if k[0] == state}
+#--------------------------------------
+def getMaxValue(state):
+  if len(filterState(state).values())==0:
+    print('UNENCOUNTERED STATE')
+    return 0
+  return max(filterState(state).values())
+#--------------------------------------
+def softmax(vals):
+  return np.exp(vals*beta)/sum(np.exp(vals*beta))
+#--------------------------------------
+def sampleProbs(vals):
+  return np.random.choice(range(len(vals)),1,p=softmax(vals))[0]
 
 #--------------------------------------
 def buildStateFromSensors(laserRanges,radar,dist2goal):
@@ -117,7 +176,8 @@ def main():
 
   d = Display(env_map, robot)
 
-  method = 'random'
+#  method = 'randomPersist'
+  method = 'qlearning'
   # experiment related stuff
   startT = time.time()
   trial = 0
@@ -187,7 +247,10 @@ def main():
     time.sleep(0.01)
 
   # When the experiment is over:
-  np.savetxt('log/'+str(startT)+'-TrialDurations-'+method+'.txt',trialDuration)
+  np.savetxt('log/'+str(startT)+'-TrialDurations-exp4-'+method+'.txt',trialDuration)
+  if method == 'qlearning':
+    np.save('log/'+str(startT)+'Q-exp4-'+method,Q)
+  
 
 #--------------------------------------
 
