@@ -66,7 +66,7 @@ def save_as_pbm(img, name, dest='./'):
 
     with open(os.path.join(dest,name), 'wb') as F:
         F.write("P4\n%i %i\n" % img.shape[::-1])
-        numpy.packbits(img, axis=-1).tofile(F)
+        np.packbits(img, axis=-1).tofile(F)
 
 
 if __name__ == '__main__':

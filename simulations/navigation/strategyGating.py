@@ -3,6 +3,8 @@
 from radarGuidance import *
 from wallFollower import *
 
+from r_max import Rmax
+
 import random #used for the random choice of a strategy
 import sys
 import numpy as np
@@ -10,10 +12,10 @@ import math
 
 #--------------------------------------
 # Position of the goal:
-goalx = 300
-goaly = 450
+goalx = 500
+goaly = 500
 # Initial position of the robot:
-initx = 300
+initx = 500
 inity = 35
 # strategy choice related stuff:
 choice = -1
@@ -47,6 +49,21 @@ alpha = 0.4
 beta = 4
 gamma = 0.95
 Q={}
+
+
+'''
+Environment for R_Max algorithm
+'''
+class Rmax_env:
+  def __init__(self):
+    self.states = ['00000','00001','00010','00100','01000','10000','11111',
+                    '00011','00101','01001','10001','11000','10100','10010','01100','01010','00110',
+                    '11100','11010','10110','01110','00111','01011','01101','10011','10101','11001',
+                    '01111','11110','11101','11011','10111']
+    self.actions = [0,1]
+    self.state_dict = dict([(state,num) for num, state in enumerate(self.states)])
+
+rmax = Rmax(Rmax_env,gamma,Rmax=10,m=10)
 
 #--------------------------------------
 # the function that selects which controller (radarGuidance or wallFollower) to use
@@ -105,9 +122,27 @@ def strategyGating(arbitrationMethod,verbose=True):
         Q[(S_t,choice)]=0
       rew = 0
     else:
-      print('Wait')
+      # print('Wait')
       if (S_t,choice) not in Q:
         Q[(S_t,choice)]=0
+  #------------------------------------------------
+  elif arbitrationMethod=='rmax':
+    if S_tm1 == '':
+      choice_tm1 = choice
+      choice = random.randrange(2)
+      tLastChoice = time.time()
+    elif time.time() - tLastChoice > 2:
+          print(f'too long')
+          choice_tm1 = choice
+          choice = random.randrange(2)
+          tLastChoice = time.time()
+    elif rew != 0:
+      rmax.learn(S_tm1,rew,S_t,choice)
+      choice_tm1 = choice
+      choice = rmax.choose_action((S_t,choice))
+      tLastChoice = time.time()
+      rew = 0
+
   #------------------------------------------------
   else:
     print(arbitrationMethod+' unknown.')
@@ -227,6 +262,7 @@ def main():
     # 2) has the robot bumped into a wall ?
     #------------------------------------
     if bumperR or bumperL or min(laserRanges[angleFMin:angleFMax]) < th_obstacleTooClose:
+    # if bumperR or bumperL or min(laserRanges[0:3]) < th_obstacleTooClose:
       rew = -1
       print("***** BING! ***** "+i2name[choice])
 

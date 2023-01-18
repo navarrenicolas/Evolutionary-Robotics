@@ -20,13 +20,13 @@ class Rmax:
         self.nSAS = np.zeros((self.size_environment,self.size_actions,self.size_environment),dtype=np.int32)
         
         self.tSAS = np.ones((self.size_environment,self.size_actions,self.size_environment))/self.size_environment
-        self.Q = np.ones((self.size_environment,self.size_actions))/(1-self.gamma)
+        self.Q = np.ones((self.size_environment,self.size_actions))/(1-self.gamma) # Optimistic initialization
         
         self.step_counter=0
                     
-    def choose_action(self):
+    def choose_action(self,cSA):
         self.step_counter+=1
-        q_values=self.Q[self.environment.current_location]
+        q_values=self.Q[self.environment.state_dict[cSA[0]],cSA[1]]
         return np.random.choice(np.flatnonzero(q_values == np.max(q_values)))
     
     
