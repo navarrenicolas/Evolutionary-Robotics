@@ -63,7 +63,7 @@ class Rmax_env:
     self.actions = [0,1]
     self.state_dict = dict([(state,num) for num, state in enumerate(self.states)])
 
-rmax = Rmax(Rmax_env,gamma,Rmax=10,m=10)
+rmax = Rmax(Rmax_env(),gamma,Rmax=10,m=10)
 
 #--------------------------------------
 # the function that selects which controller (radarGuidance or wallFollower) to use

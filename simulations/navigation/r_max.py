@@ -31,14 +31,16 @@ class Rmax:
     
     
     def learn(self,old_state,reward,new_state,action):
+                    oS = self.environment.state_dict[old_state]
+                    nS = self.environment.state_dict[new_state]
+
+                    self.nSA[oS][action] +=1
+                    self.nSAS[oS][action][nS] += 1
+                    self.Rsum[oS][action]+=reward
+                    self.R[oS][action]=self.Rsum[oS][action]/self.nSA[oS][action]
                     
-                    self.nSA[old_state][action] +=1
-                    self.nSAS[old_state][action][new_state] += 1
-                    self.Rsum[old_state][action]+=reward
-                    self.R[old_state][action]=self.Rsum[old_state][action]/self.nSA[old_state][action]
-                    
-                    self.compute_reward_VI(old_state,reward,action)                
-                    self.compute_transitions(old_state,new_state,action)
+                    self.compute_reward_VI(oS,reward,action)                
+                    self.compute_transitions(oS,nS,action)
 
                     
                     self.value_iteration()
