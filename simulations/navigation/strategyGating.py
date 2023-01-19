@@ -56,10 +56,7 @@ Environment for R_Max algorithm
 '''
 class Rmax_env:
   def __init__(self):
-    self.states = ['00000','00001','00010','00100','01000','10000','11111',
-                    '00011','00101','01001','10001','11000','10100','10010','01100','01010','00110',
-                    '11100','11010','10110','01110','00111','01011','01101','10011','10101','11001',
-                    '01111','11110','11101','11011','10111']
+    self.states =  [a+b+c+d+e for a in map(str,range(2)) for b in map(str,range(2)) for c in map(str,range(2)) for d in map(str,range(8)) for e in map(str,range(3))]
     self.actions = [0,1]
     self.state_dict = dict([(state,num) for num, state in enumerate(self.states)])
 
@@ -213,6 +210,7 @@ def main():
 
 #  method = 'randomPersist'
   method = 'qlearning'
+  method = 'rmax'
   # experiment related stuff
   startT = time.time()
   trial = 0
