@@ -131,7 +131,7 @@ def strategyGating(arbitrationMethod,verbose=True):
     elif time.time() - tLastChoice > 2:
           print(f'too long')
           choice_tm1 = choice
-          choice = random.randrange(2)
+          choice = 0
           tLastChoice = time.time()
     elif rew != 0:
       rmax.learn(S_tm1,rew,S_t,choice)
