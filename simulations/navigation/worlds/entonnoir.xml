@@ -5,7 +5,7 @@
   <!-- world -->
   <!-- <map name="worlds/entonnoir2.pbm" size="600"/> 
   <robot x="300" y="35" theta="1.5" diameter="10"/> -->
-  <map name="worlds/original_maze.pbm" size="1000"/>
+  <map name="worlds/mazev6.pbm" size="1000"/>
   <robot x="500" y="950" theta="1.5" diameter="10"/>
 
   <!-- illuminated_switch x="300" y="500" color="0" radius="10" on="true"/ -->
