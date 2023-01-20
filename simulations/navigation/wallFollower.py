@@ -21,7 +21,7 @@ th_obstacleFront = 30 #35
 th_wallTooClose = 20 #25
 th_wallTooFar = 30 #35
 th_neglectedWall = 40 #50
-v_fwd = 2.
+v_fwd = 4.
 v_turn = .6
 
 # computation of the scans used to check front obstacle:

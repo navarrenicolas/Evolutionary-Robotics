@@ -6,9 +6,10 @@ from wallFollower import *
 from r_max import Rmax
 
 import random #used for the random choice of a strategy
-import sys
 import numpy as np
 import math
+
+import pickle
 
 #--------------------------------------
 # Position of the goal:
@@ -23,14 +24,14 @@ choice_tm1 = -1
 tLastChoice = 0
 rew = 0
 
-i2name=['wallFollower','radarGuidance']
+i2name=['wallFollower','radarGuidance','straight']
 
 # Parameters of State building:
 # threshold for wall consideration
-th_neglectedWall = 35
+th_neglectedWall = 50
 # threshold to consider that we are too close to a wall
 # and a punishment should be delivered
-th_obstacleTooClose = 13
+th_obstacleTooClose = 20
 # angular limits used to define states
 angleLMin = 0
 angleLMax = 55
@@ -57,10 +58,11 @@ Environment for R_Max algorithm
 class Rmax_env:
   def __init__(self):
     self.states =  [a+b+c+d+e for a in map(str,range(2)) for b in map(str,range(2)) for c in map(str,range(2)) for d in map(str,range(8)) for e in map(str,range(3))]
-    self.actions = [0,1]
+    self.actions = [0,1,2]
     self.state_dict = dict([(state,num) for num, state in enumerate(self.states)])
 
 rmax = Rmax(Rmax_env(),gamma,Rmax=10,m=10)
+
 
 #--------------------------------------
 # the function that selects which controller (radarGuidance or wallFollower) to use
@@ -85,55 +87,17 @@ def strategyGating(arbitrationMethod,verbose=True):
       choice = random.randrange(2)
       tLastChoice = time.time()
   #------------------------------------------------
-  elif arbitrationMethod=='qlearning':
-    # Check if the state has been visited
-    if len(filterState(S_t).values())==0:
-      print(f'not in keys')
-      choice_tm1 = choice
-      choice = random.randrange(2)
-      tLastChoice = time.time()
-      Q[(S_t,choice)]=0
-    # Otherwise check if it has been long since the last change of action
-    elif time.time() - tLastChoice > 2:
-      print(f'too long')
-      choice_tm1 = choice
-      choice = random.randrange(2)
-      tLastChoice = time.time()
-      if (S_t,choice) not in Q:
-        Q[(S_t,choice)]=0
-    # Otherwise if the reward is not 0 change action
-    elif rew != 0:
-      print(f'change Q')
-      choice_tm1 = choice
-      dt=rew + gamma*getMaxValue(S_t) - Q[(S_tm1,choice_tm1)]
-      print(f'dt: {dt}')
-      Q[(S_tm1,choice_tm1)] += alpha*dt
-      filtered_Q = filterState(S_t)
-      filtered_vals = np.array(list(filtered_Q.values()))
-      if len(filtered_vals)==0:
-        choice = random.randrange(2)
-      else:
-        choice = list(filtered_Q)[sampleProbs(filtered_vals)][1]
-      tLastChoice = time.time()
-      if (S_t,choice) not in Q:
-        Q[(S_t,choice)]=0
-      rew = 0
-    else:
-      # print('Wait')
-      if (S_t,choice) not in Q:
-        Q[(S_t,choice)]=0
-  #------------------------------------------------
   elif arbitrationMethod=='rmax':
     if S_tm1 == '':
       choice_tm1 = choice
-      choice = random.randrange(2)
+      choice = 2 # Go straight
       tLastChoice = time.time()
     elif time.time() - tLastChoice > 2:
           print(f'too long')
           choice_tm1 = choice
-          choice = 0
+          choice = random.randrange(3)
           tLastChoice = time.time()
-    elif rew != 0:
+    elif rew != 0: 
       rmax.learn(S_tm1,rew,S_t,choice)
       choice_tm1 = choice
       choice = rmax.choose_action((S_t,choice))
@@ -196,6 +160,9 @@ def buildStateFromSensors(laserRanges,radar,dist2goal):
   return S
 
 #--------------------------------------
+def go_straight():
+  return (5,5)
+#--------------------------------------
 def main():
   global S_t
   global S_tm1
@@ -214,7 +181,7 @@ def main():
   # experiment related stuff
   startT = time.time()
   trial = 0
-  nbTrials = 40
+  nbTrials = 50
   trialDuration = np.zeros((nbTrials))
 
   i = 0
@@ -241,6 +208,7 @@ def main():
       trialDuration[trial] = currT - startT
       startT = currT
       print("Trial "+str(trial)+" duration:"+str(trialDuration[trial]))
+      save_object(rmax,'log/agents/obj_trial_'+str(trial)+'.pkl')
       trial +=1
       rew = 1
 
@@ -273,8 +241,11 @@ def main():
     strategyGating(method,verbose=False)
     if choice==0:
       v = wallFollower(laserRanges,verbose=False)
-    else:
+    elif choice == 1:
       v = radarGuidance(laserRanges,bumperL,bumperR,radar,verbose=False)
+    elif choice == 2:
+      v = go_straight()
+      print('GOING STRAIGHT')
 
     i+=1
     robot.move(v[0], v[1], env_map)
@@ -282,9 +253,11 @@ def main():
 
   # When the experiment is over:
   np.savetxt('log/'+str(startT)+'-TrialDurations-exp4-'+method+'.txt',trialDuration)
-  if method == 'qlearning':
-    np.save('log/'+str(startT)+'Q-exp4-'+method,Q)
   
+def save_object(obj, filename):
+    with open(filename, 'wb') as outp:  # Overwrites any existing file.
+        pickle.dump(obj, outp, pickle.HIGHEST_PROTOCOL)
+
 
 #--------------------------------------
 
