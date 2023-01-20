@@ -4,16 +4,13 @@ import pickle
 
 import numpy as np
 import matplotlib.pyplot as plt
-
+import os
 
 class Rmax_env:
     def __init__(self):
         self.states =  [a+b+c+d+e for a in map(str,range(2)) for b in map(str,range(2)) for c in map(str,range(2)) for d in map(str,range(8)) for e in map(str,range(3))]
         self.actions = [0,1,2]
         self.state_dict = dict([(state,num) for num, state in enumerate(self.states)])
-
-check_agents = True
-check_times = False
 
 
 def show_SA(i):
@@ -28,6 +25,30 @@ def save_SA(i):
     plt.savefig('images/run2/'+str(i)+'.png')
     plt.close()
 
+check_agents = False
+check_times = False
+check_mazes = True
+
+
+if check_mazes:
+    nmazes = 6
+    distances = np.zeros((nmazes,10))
+    files = os.listdir('simulations/navigation/log/')
+    print(files)
+    for maze in range(nmazes):
+        # file = [_ for _ in files if f'maze{maze}_closest' in files]
+        file = [_ for _ in files if f'maze{maze+1}_closest' in _][0]
+        distances[maze] = np.loadtxt('simulations/navigation/log/'+file)
+
+    plt.boxplot(distances.T)
+    plt.ylabel('distance from goal')
+    plt.xlabel('Maze')
+    plt.yscale('log')
+    plt.ylim([10e-1,10e2])
+    plt.show()
+    
+
+
 
 if check_agents:
     agents = []
@@ -40,9 +61,15 @@ if check_agents:
 
 if check_times:
     # times = np.loadtxt('simulations/navigation/log/1674174055.3266644-TrialDurations-exp4-rmax.txt')
-    times = np.loadtxt('simulations/navigation/log/1674177845.934214-TrialDurations-exp4-rmax.txt')
-    plt.plot(times)
+    files = os.listdir('simulations/navigation/log/')
+    print(files)
+    files = [_ for _ in files if '.txt' in files]
+    # times = np.loadtxt('simulations/navigation/log/1674177845.934214-TrialDurations-exp4-rmax.txt')
+    for file in files:
+        times = np.loadtxt('simulations/navigation/log/'+file)
+        plt.plot(times)
     plt.show()
+
 
 
 def img2gif(img_dir,output_file):

@@ -1,3 +1,11 @@
+###
+# Écrit par Augustin Chartouny
+# 18 janvier 2023
+#
+# Modified by Nicolas Navare
+# 19 january 2023
+###
+
 import numpy as np
 
 class Rmax:

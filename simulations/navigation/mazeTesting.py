@@ -17,7 +17,7 @@ goalx = 500
 goaly = 500
 # Initial position of the robot:
 initx = 500
-inity = 35
+inity = 950
 # strategy choice related stuff:
 choice = -1
 choice_tm1 = -1
@@ -60,7 +60,9 @@ class Rmax_env:
     self.state_dict = dict([(state,num) for num, state in enumerate(self.states)])
 
 file = f'obj_trial_{49}.pkl'
-with open('./simulations/navigation/log/agents/'+file, 'rb') as inp:
+run = 1
+maze = 6
+with open(f'./log/agents/run'+str(run)+'/'+file, 'rb') as inp:
     rmax = pickle.load(inp)
 
 #--------------------------------------
@@ -110,21 +112,6 @@ def strategyGating(arbitrationMethod,verbose=True):
 
   if verbose:
     print("strategyGating: Active Module: "+i2name[choice])
-#--------------------------------------
-def filterState(state):
-  return {k:v for k,v in Q.items() if k[0] == state}
-#--------------------------------------
-def getMaxValue(state):
-  if len(filterState(state).values())==0:
-    print('UNENCOUNTERED STATE')
-    return 0
-  return max(filterState(state).values())
-#--------------------------------------
-def softmax(vals):
-  return np.exp(vals*beta)/sum(np.exp(vals*beta))
-#--------------------------------------
-def sampleProbs(vals):
-  return np.random.choice(range(len(vals)),1,p=softmax(vals))[0]
 
 #--------------------------------------
 def buildStateFromSensors(laserRanges,radar,dist2goal):
@@ -180,78 +167,80 @@ def main():
   # experiment related stuff
   startT = time.time()
   trial = 0
-  nbTrials = 3000
+  nbTrials = 10
   trialDuration = np.zeros((nbTrials))
+  closest = np.ones(nbTrials)*1000
 
   i = 0
-  while i<nbTrials:
-    # update the display
-    #-------------------------------------
-    d.update()
-    # get position data from the simulation
-    #-------------------------------------
-    pos = robot.get_pos()
-    # print("##########\nStep "+str(i)+" robot pos: x = "+str(int(pos.x()))+" y = "+str(int(pos.y()))+" theta = "+str(int(pos.theta()/math.pi*180.)))
+  while trial<nbTrials:
+    while i< 3000:
+      # update the display
+      #-------------------------------------
+      d.update()
+      # get position data from the simulation
+      #-------------------------------------
+      pos = robot.get_pos()
 
-    # has the robot found the reward ?
-    #------------------------------------
-    dist2goal = math.sqrt((pos.x()-goalx)**2+(pos.y()-goaly)**2)
-    # if so, teleport it to initial position, store trial duration, set reward to 1:
-    if (dist2goal<20): # 30
-      print('***** REWARD REACHED *****')
-      pos.set_x(initx)
-      pos.set_y(inity)
-      robot.set_pos(pos) # format ?
-      # and store information about the duration of the finishing trial:
-      currT = time.time()
-      trialDuration[trial] = currT - startT
-      startT = currT
-      print("Trial "+str(trial)+" duration:"+str(trialDuration[trial]))
-      save_object(rmax,'log/agents/obj_trial_'+str(trial)+'.pkl')
-      trial +=1
-      rew = 1
+      # has the robot found the reward ?
+      #------------------------------------
+      dist2goal = math.sqrt((pos.x()-goalx)**2+(pos.y()-goaly)**2)
+      if dist2goal < closest[trial]:
+        closest[trial] = dist2goal
+      if (dist2goal<20): 
+          print('***** REWARD REACHED *****')
+          # and store information about the duration of the finishing trial:
+          currT = time.time()
+          # print("Trial "+str(trial)+" duration:"+str(trialDuration[trial]))
+          # save_object(rmax,'log/agents/obj_trial_'+str(trial)+'.pkl')
+          rew = 1
+          i = 3000
 
-    # get the sensor inputs:
-    #------------------------------------
-    lasers = robot.get_laser_scanners()[0].get_lasers()
-    laserRanges = []
-    for l in lasers:
-      laserRanges.append(l.get_dist())
+      # get the sensor inputs:
+      #------------------------------------
+      lasers = robot.get_laser_scanners()[0].get_lasers()
+      laserRanges = []
+      for l in lasers:
+        laserRanges.append(l.get_dist())
 
-    radar = robot.get_radars()[0].get_activated_slice()
+      radar = robot.get_radars()[0].get_activated_slice()
 
-    bumperL = robot.get_left_bumper()
-    bumperR = robot.get_right_bumper()
+      bumperL = robot.get_left_bumper()
+      bumperR = robot.get_right_bumper()
 
 
-    # 2) has the robot bumped into a wall ?
-    #------------------------------------
-    if bumperR or bumperL or min(laserRanges[angleFMin:angleFMax]) < th_obstacleTooClose:
-    # if bumperR or bumperL or min(laserRanges[0:3]) < th_obstacleTooClose:
-      rew = -1
-      print("***** BING! ***** "+i2name[choice])
+      # 2) has the robot bumped into a wall ?
+      #------------------------------------
+      if bumperR or bumperL or min(laserRanges[angleFMin:angleFMax]) < th_obstacleTooClose:
+      # if bumperR or bumperL or min(laserRanges[0:3]) < th_obstacleTooClose:
+        rew = -1
+        print("***** BING! ***** "+i2name[choice])
 
-    # 3) build the state, that will be used by learning, from the sensory data
-    #------------------------------------
-    S_tm1 = S_t
-    S_t = buildStateFromSensors(laserRanges,radar, dist2goal)
+      # 3) build the state, that will be used by learning, from the sensory data
+      #------------------------------------
+      S_tm1 = S_t
+      S_t = buildStateFromSensors(laserRanges,radar, dist2goal)
 
-    #------------------------------------
-    strategyGating(method,verbose=False)
-    if choice==0:
-      v = wallFollower(laserRanges,verbose=False)
-    elif choice == 1:
-      v = radarGuidance(laserRanges,bumperL,bumperR,radar,verbose=False)
-    elif choice == 2:
-      v = go_straight()
-      print('GOING STRAIGHT')
+      #------------------------------------
+      strategyGating(method,verbose=False)
+      if choice==0:
+        v = wallFollower(laserRanges,verbose=False)
+      elif choice == 1:
+        v = radarGuidance(laserRanges,bumperL,bumperR,radar,verbose=False)
+      elif choice == 2:
+        v = go_straight()
+        print('GOING STRAIGHT')
 
-    i+=1
-    robot.move(v[0], v[1], env_map)
-    time.sleep(0.01)
+      i+=1
+      robot.move(v[0], v[1], env_map)
+      time.sleep(0.01)
+    trial += 1
+    i = 0
+    pos.set_x(initx)
+    pos.set_y(inity)
+    robot.set_pos(pos)
 
   # When the experiment is over:
-  np.savetxt('log/'+str(startT)+'-TrialDurations-exp4-'+method+'.txt',trialDuration)
+  np.savetxt('log/'+str(startT)+'_agent'+str(run)+'_maze'+str(maze)+'_closest.txt',closest)
   
 def save_object(obj, filename):
     with open(filename, 'wb') as outp:  # Overwrites any existing file.
